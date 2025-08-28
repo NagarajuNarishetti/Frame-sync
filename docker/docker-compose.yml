@@ -1,0 +1,85 @@
+version: "3.9"
+
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0.6
+    container_name: framesync-keycloak
+    command: start-dev
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      #KC_FEATURES: preview,organization
+
+      KC_DB: postgres
+      KC_DB_URL_HOST: postgres
+      KC_DB_URL_DATABASE: framesyncdb
+      KC_DB_USERNAME: framesyncuser
+      KC_DB_PASSWORD: framesyncpass
+
+    ports:
+      - "8080:8080"
+    volumes:
+      - keycloak_data:/opt/keycloak/data
+    networks:
+      - framesync_net
+
+  postgres:
+    image: postgres:15
+    container_name: framesync-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: framesyncuser
+      POSTGRES_PASSWORD: framesyncpass
+      POSTGRES_DB: framesyncdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - framesync_net
+
+  # MongoDB for comments and annotations
+  mongodb:
+    image: mongo:6.0
+    container_name: framesync-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: admin123
+      MONGO_INITDB_DATABASE: framesync
+    volumes:
+      - mongo_data:/data/db
+      - mongo_config:/data/configdb
+    networks:
+      - framesync_net
+
+  # MongoDB Admin UI
+  mongo-express:
+    image: mongo-express:latest
+    container_name: framesync-mongo-express
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_SERVER: mongodb
+      ME_CONFIG_MONGODB_PORT: 27017
+      ME_CONFIG_MONGODB_ADMINUSERNAME: admin
+      ME_CONFIG_MONGODB_ADMINPASSWORD: admin123
+      ME_CONFIG_BASICAUTH_USERNAME: admin
+      ME_CONFIG_BASICAUTH_PASSWORD: admin
+    depends_on:
+      - mongodb
+    networks:
+      - framesync_net
+
+volumes:
+  keycloak_data:
+  postgres_data:
+  mongo_data:
+  mongo_config:
+
+networks:
+  framesync_net:
+    driver: bridge
